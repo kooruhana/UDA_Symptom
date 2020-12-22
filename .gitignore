@@ -1,5 +1,5 @@
-BERT_Base_Uncased
+BERT_Base_Uncased/
 results_200_2e-5
 results_200_2e-5_2
-data
+data/
 bert_preproc.ipynb
