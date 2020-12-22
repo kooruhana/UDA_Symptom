@@ -77,8 +77,8 @@ class CsvDataset(Dataset):
                     self.tensors = ori_tensor + aug_tensor
         # already preprocessed
         else:
-            f = open(file, 'r', encoding='utf-8')
-            data = pd.read_csv(f, sep='\t')
+            # f = open(file, 'r', encoding='utf-8') #改这里？
+            data = pd.read_csv(file, sep=',')
 
             # supervised dataset
             if d_type == 'sup':

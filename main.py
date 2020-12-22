@@ -20,6 +20,8 @@ import torch.nn.functional as F
 
 import models
 import train
+from statistics import mean
+from sklearn.metrics import f1_score
 from load_data import load_data
 from utils.utils import set_seeds, get_device, _get_device, torch_device_one
 from utils import optim, configuration
@@ -133,17 +135,42 @@ def main(cfg, model_cfg):
         return sup_loss, None, None
 
     # evaluation
+    def f1_loss(y_true:torch.Tensor, y_pred:torch.Tensor, is_training=False) -> torch.Tensor:
+        y_true = y_true.cpu().numpy().tolist()
+        y_pred = y_pred.cpu().numpy().tolist()
+        f1 = f1_score(y_true, y_pred, average='weighted')
+#         assert y_true.ndim == 1
+#         assert y_pred.ndim == 1 or y_pred.ndim == 2
+
+#         if y_pred.ndim == 2:
+#             y_pred = y_pred.argmax(dim=1)
+
+
+#         tp = (y_true * y_pred).sum().to(torch.float32)
+#         tn = ((1 - y_true) * (1 - y_pred)).sum().to(torch.float32)
+#         fp = ((1 - y_true) * y_pred).sum().to(torch.float32)
+#         fn = (y_true * (1 - y_pred)).sum().to(torch.float32)
+
+#         epsilon = 1e-7
+
+#         precision = tp / (tp + fp + epsilon)
+#         recall = tp / (tp + fn + epsilon)
+
+#         f1 = 2* (precision*recall) / (precision + recall + epsilon)
+#         f1.requires_grad = is_training
+        return f1
+
     def get_acc(model, batch):
         # input_ids, segment_ids, input_mask, label_id, sentence = batch
         input_ids, segment_ids, input_mask, label_id = batch
         logits = model(input_ids, segment_ids, input_mask)
         _, label_pred = logits.max(1)
-
+        f1 = f1_loss(label_id, label_pred)
         result = (label_pred == label_id).float()
         accuracy = result.mean()
         # output_dump.logs(sentence, label_pred, label_id)    # output dump
 
-        return accuracy, result
+        return accuracy, result, f1
 
     if cfg.mode == 'train':
         trainer.train(get_loss, None, cfg.model_file, cfg.pretrain_file)
@@ -152,9 +179,11 @@ def main(cfg, model_cfg):
         trainer.train(get_loss, get_acc, cfg.model_file, cfg.pretrain_file)
 
     if cfg.mode == 'eval':
-        results = trainer.eval(get_acc, cfg.model_file, None)
+        results, f1s = trainer.eval(get_acc, cfg.model_file, None)
         total_accuracy = torch.cat(results).mean().item()
+        total_f1 = mean(f1s)
         print('Accuracy :' , total_accuracy)
+        print('F1 Score :' , total_f1)
 
 
 if __name__ == '__main__':

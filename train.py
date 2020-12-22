@@ -26,6 +26,7 @@ import torch
 import torch.nn as nn
 
 from utils import checkpoint
+from statistics import mean
 # from utils.logger import Logger
 from tensorboardX import SummaryWriter
 from utils.utils import output_logging
@@ -38,7 +39,7 @@ class Trainer(object):
         self.model = model
         self.optimizer = optimizer
         self.device = device
-
+        
         # data iter
         if len(data_iter) == 1:
             self.sup_iter = data_iter[0]
@@ -65,7 +66,7 @@ class Trainer(object):
 
         global_step = 0
         loss_sum = 0.
-        max_acc = [0., 0]   # acc, step
+        max_f1 = [0., 0]   # acc, step
 
         # Progress bar is set by unsup or sup data
         # uda_mode == True --> sup_iter is repeated
@@ -112,27 +113,29 @@ class Trainer(object):
             if global_step % self.cfg.save_steps == 0:
                 self.save(global_step)
 
-            if get_acc and global_step % self.cfg.check_steps == 0 and global_step > 4999:
-                results = self.eval(get_acc, None, model)
+            if get_acc and global_step % self.cfg.check_steps == 0:
+                results, f1s = self.eval(get_acc, None, model)
                 total_accuracy = torch.cat(results).mean().item()
-                logger.add_scalars('data/scalar_group', {'eval_acc' : total_accuracy}, global_step)
-                if max_acc[0] < total_accuracy:
+                total_f1 = mean(f1s)
+                logger.add_scalars('data/scalar_group', {'eval_f1' : total_f1}, global_step)
+                if max_f1[0] < total_f1:
                     self.save(global_step)
-                    max_acc = total_accuracy, global_step
-                print('Accuracy : %5.3f' % total_accuracy)
-                print('Max Accuracy : %5.3f Max global_steps : %d Cur global_steps : %d' %(max_acc[0], max_acc[1], global_step), end='\n\n')
+                    max_f1 = total_f1, global_step
+                print('F1 Score : %5.3f' % total_f1)
+                print('Max F1 Score : %5.3f Max global_steps : %d Cur global_steps : %d' %(max_f1[0], max_f1[1], global_step), end='\n\n')
 
             if self.cfg.total_steps and self.cfg.total_steps < global_step:
                 print('The total steps have been reached')
                 print('Average Loss %5.3f' % (loss_sum/(i+1)))
                 if get_acc:
-                    results = self.eval(get_acc, None, model)
+                    results, f1s = self.eval(get_acc, None, model)
                     total_accuracy = torch.cat(results).mean().item()
-                    logger.add_scalars('data/scalar_group', {'eval_acc' : total_accuracy}, global_step)
-                    if max_acc[0] < total_accuracy:
-                        max_acc = total_accuracy, global_step                
-                    print('Accuracy :', total_accuracy)
-                    print('Max Accuracy : %5.3f Max global_steps : %d Cur global_steps : %d' %(max_acc[0], max_acc[1], global_step), end='\n\n')
+                    total_f1 = mean(f1s)
+                    logger.add_scalars('data/scalar_group', {'eval_f1' : total_f1}, global_step)
+                    if max_f1[0] < total_f1:
+                        max_f1 = total_f1, global_step                
+                    print('F1 Score :', total_f1)
+                    print('Max F1 Score : %5.3f Max global_steps : %d Cur global_steps : %d' %(max_f1[0], max_f1[1], global_step), end='\n\n')
                 self.save(global_step)
                 return
         return global_step
@@ -147,17 +150,20 @@ class Trainer(object):
                 model = nn.DataParallel(model)
 
         results = []
+        f1s = []
         iter_bar = tqdm(self.sup_iter) if model_file \
             else tqdm(deepcopy(self.eval_iter))
         for batch in iter_bar:
             batch = [t.to(self.device) for t in batch]
 
             with torch.no_grad():
-                accuracy, result = evaluate(model, batch)
+                accuracy, result, f1 = evaluate(model, batch)
             results.append(result)
+            f1s.append(f1)
 
-            iter_bar.set_description('Eval Acc=%5.3f' % accuracy)
-        return results
+            # iter_bar.set_description('Eval Acc=%5.3f' % accuracy)
+            iter_bar.set_description('F1=%5.3f' % f1)
+        return results, f1s
             
     def load(self, model_file, pretrain_file):
         """ between model_file and pretrain_file, only one model will be loaded """

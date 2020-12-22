@@ -178,9 +178,15 @@ class Classifier(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         h = self.transformer(input_ids, segment_ids, input_mask)
+#         print(len(h))
+#         print(len(h[0]))
+#         print(len(h[0][0]))
         # only use the first h in the sequence
         pooled_h = self.activ(self.fc(h[:, 0])) # 맨앞의 [CLS]만 뽑아내기
+#         print(len(pooled_h))
         logits = self.classifier(self.drop(pooled_h))
+#         print(len(logits))
+#         print(logits)
         return logits
 
 class Opinion_extract(nn.Module):
@@ -201,3 +207,16 @@ class Opinion_extract(nn.Module):
         seq_h = self.extract(h)
         seq_h = seq_h.squeeze()
         return self.sigmoid(seq_h)
+
+# class OutputFCLayer(nn.Module):
+#     def __init__(self, cfg, n_labels):
+#         super(OutputFCLayer, self).__init__()
+#         self.bert = Classifier(cfg, n_labels)
+#         self.dropout = nn.Dropout(cfg.p_drop_hidden)
+#         self.activ = nn.Tanh()
+#         self.classifier = nn.Linear(cfg.dim, n_labels)
+        
+#     def forward(self,input_ids, segment_ids, input_mask):
+#         pooled_output = self.bert(input_ids, segment_ids, input_mask)
+#         logits = self.classifier(self.activ(self.drop(pooled_output)))
+#         return logits
