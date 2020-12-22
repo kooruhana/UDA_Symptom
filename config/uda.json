@@ -1,0 +1,36 @@
+{
+    "seed": 42,
+    "lr": 2e-5,
+    "warmup": 0.1,
+    "do_lower_case": true,
+    "mode": "train_eval",
+    "uda_mode": true,
+
+    "total_steps": 20000,
+    "max_seq_length": 128,
+    "train_batch_size": 32,
+    "eval_batch_size": 32,
+
+    "unsup_ratio": 3,
+    "uda_coeff": 1,
+    "tsa": "linear_schedule",
+    "uda_softmax_temp": 0.4,
+    "uda_confidence_thresh": 0.8,
+
+    "data_parallel": true,
+    "need_prepro": false,
+    "sup_data_dir": "data/schizo_200_train128.csv",
+    "unsup_data_dir": "data/schizo_processed_unlabel_128.csv",
+    "eval_data_dir": "data/schizo_2k_test128.csv",
+
+    "model_file":null,
+    "pretrain_file":"BERT_Base_Uncased/bert_model.ckpt",
+    "vocab":"BERT_Base_Uncased/vocab.txt",
+    "task": "imdb",
+
+    "save_steps": 200,
+    "check_steps": 200,
+    "results_dir": "results_200_2e-5_3",
+
+    "is_position": false
+}
